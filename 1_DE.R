@@ -26,11 +26,11 @@ G1_1 <- readr::read_tsv("/project/huff/huff/TKI/data/RNA/F17FTSCCWLJ2064_HUMwcyR
   dplyr::select(Symbol,FPKM) %>%
   dplyr::rename("G1_1"="FPKM")
 
-G1_2 <- readr::read_tsv("/project/huff/huff/TKI/data/RNA/F17FTSCCWLJ2064_HUMwcyR/Analysis_Report/BGI_result/Quantify/GeneExpression/GeneExpression/G1_1.gene.fpkm.xls") %>%
+G1_2 <- readr::read_tsv("/project/huff/huff/TKI/data/RNA/F17FTSCCWLJ2064_HUMwcyR/Analysis_Report/BGI_result/Quantify/GeneExpression/GeneExpression/G1_2.gene.fpkm.xls") %>%
   dplyr::select(Symbol,FPKM) %>%
   dplyr::rename("G1_2"="FPKM")
 
-G1_3 <- readr::read_tsv("/project/huff/huff/TKI/data/RNA/F17FTSCCWLJ2064_HUMwcyR/Analysis_Report/BGI_result/Quantify/GeneExpression/GeneExpression/G1_1.gene.fpkm.xls") %>%
+G1_3 <- readr::read_tsv("/project/huff/huff/TKI/data/RNA/F17FTSCCWLJ2064_HUMwcyR/Analysis_Report/BGI_result/Quantify/GeneExpression/GeneExpression/G1_3.gene.fpkm.xls") %>%
   dplyr::select(Symbol,FPKM) %>%
   dplyr::rename("G1_3"="FPKM")
 
@@ -75,6 +75,7 @@ DE_1_up %>%
   dplyr::select(Symbol) %>%
   dplyr::semi_join(DE_2_up,by="Symbol") %>%
   dplyr::semi_join(DE_3_up,by="Symbol") %>%
+  tidyr::drop_na() %>%
   t() %>%
   as.character()-> genes_up_in_all_pairs
 
@@ -82,10 +83,11 @@ DE_1_down%>%
   dplyr::select(Symbol) %>%
   dplyr::semi_join(DE_2_down,by="Symbol") %>%
   dplyr::semi_join(DE_3_down,by="Symbol") %>%
+  tidyr::drop_na() %>%
   t() %>%
   as.character()-> genes_down_in_all_pairs
 
-c(genes_up_in_all_pairs,genes_down_in_all_pairs) -> genes_DE_in_all_pairs
+c(genes_up_in_all_pairs,genes_down_in_all_pairs)-> genes_DE_in_all_pairs
 
 # noiseq result overlap ---------------------------------------------------
 # BGI result filter
@@ -96,6 +98,12 @@ DE_all %>%
   dplyr::filter(abs(`log2FoldChange(G1/Control)`)>=fc_threshold) %>%
   dplyr::rename("log2FC"=`log2FoldChange(G1/Control)`) %>%
   dplyr::mutate(`G1/Control`=ifelse(log2FC>0,"Up","Down")) -> DE_all_0.8_1.5
+
+DE_all_0.8_1.5 %>%
+  readr::write_tsv(path = file.path(out_path,"IM_dis_DE_BGI_0.8_1.5_mRNA"))
+
+DE_all_0.8_1.5_overlap_allPair %>%
+  readr::write_tsv(path = file.path(out_path,"IM_dis_DE_mRNA"))
 
 # overlap -----------------------------------------------------------------
 
@@ -204,3 +212,9 @@ he = Heatmap(DE_exp_rowscale,
 he +ha1
 dev.off()
 class(exp_heatmap)
+
+# specific gene expression
+# ATPase related
+
+DE_exp[c("PAM16","LTF"),] %>%
+  Heatmap()
