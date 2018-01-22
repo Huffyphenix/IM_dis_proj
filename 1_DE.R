@@ -93,17 +93,17 @@ c(genes_up_in_all_pairs,genes_down_in_all_pairs)-> genes_DE_in_all_pairs
 # BGI result filter
 # filter condition: FC1.5 probability0.8
 DE_all %>%
-  dplyr::select(Symbol,Probability,`log2FoldChange(G1/Control)`) %>%
+  dplyr::select(Symbol,`Control-Expression`,`G1-Expression`,`log2FoldChange(G1/Control)`,Probability) %>%
   dplyr::filter(Probability>=0.8) %>%
   dplyr::filter(abs(`log2FoldChange(G1/Control)`)>=fc_threshold) %>%
   dplyr::rename("log2FC"=`log2FoldChange(G1/Control)`) %>%
   dplyr::mutate(`G1/Control`=ifelse(log2FC>0,"Up","Down")) -> DE_all_0.8_1.5
 
 DE_all_0.8_1.5 %>%
-  readr::write_tsv(path = file.path(out_path,"IM_dis_DE_BGI_0.8_1.5_mRNA"))
+  readr::write_tsv(path = file.path(out_path,"IM_dis_DE_BGI_0.8_1.5_mRNA.info"))
 
-DE_all_0.8_1.5_overlap_allPair %>%
-  readr::write_tsv(path = file.path(out_path,"IM_dis_DE_mRNA"))
+# DE_all_0.8_1.5_overlap_allPair %>%
+#   readr::write_tsv(path = file.path(out_path,"IM_dis_DE_mRNA"))
 
 # overlap -----------------------------------------------------------------
 
@@ -111,7 +111,7 @@ DE_all_0.8_1.5 %>%
   dplyr::filter(Symbol %in% genes_DE_in_all_pairs) -> DE_all_0.8_1.5_overlap_allPair
 
 DE_all_0.8_1.5_overlap_allPair %>%
-  readr::write_tsv(path = file.path(out_path,"IM_dis_DE_mRNA"))
+  readr::write_tsv(path = file.path(out_path,"DE_all_BGI0.8_1.5_overlap_allPair.info"))
 
 
 # statistic ---------------------------------------------------------------
@@ -120,9 +120,7 @@ DE_all_0.8_1.5_overlap_allPair %>%
   dplyr::select(`G1/Control`)  %>%
   table()
 
-DE_all_0.8_1.5_overlap_allPair %>%
-  dplyr::select(Probability,log2FC) %>%
-  dplyr::mutate(Probability=log10(1-Probability)) %>%
+
   
 
 # plot --------------------------------------------------------------------
@@ -181,23 +179,13 @@ ha1 = rowAnnotation(df = DE_anno,
                         width = unit(0.5, "cm")
 )
 
-
-# ha3 = rowAnnotation(link = row_anno_link(at = subset, labels = labels),
-#                     col = list(`G1/Control` = c("Up" = "red", "Down" = "blue")),
-#                     width = unit(1, "cm")
-# )
-# column annotation
 sam_anno <- data.frame(Group = c(rep("Con",3),rep("IM",3)))
 rownames(sam_anno) <- DE_exp %>% colnames()
 log2(DE_exp) -> log2DE_exp
 ha2 = HeatmapAnnotation(df = sam_anno,
                         boxplot = anno_boxplot(DE_exp, axis = TRUE),
-                        # violin = anno_density(DE_exp, type = "violin", 
-                        #                       gp = gpar(fill = c("Con" = "pink", "IM" = "purple"))),
                         col = list(Group = c("Con" = "pink", "IM" = "purple")))
 
-# ha3 = HeatmapAnnotation(boxplot = anno_boxplot(log2(DE_exp), axis = TRUE, axis_direction = "reverse"), 
-                        # width = unit(2, "cm"))
 
 DE_exp %>%
   t() %>%
@@ -215,6 +203,6 @@ class(exp_heatmap)
 
 # specific gene expression
 # ATPase related
+DE_all_0.8_1.5_overlap_allPair %>%
+  dplyr::arrange(log2FC)
 
-DE_exp[c("PAM16","LTF"),] %>%
-  Heatmap()
