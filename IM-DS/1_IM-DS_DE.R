@@ -86,9 +86,22 @@ all_exp %>%
 # get overlap of 3 samples
 all_samples_DE_info %>%
   dplyr::filter(G2_G1_1=="Up" & G2_G1_2=="Up" & G2_G1_3=="Up") -> Up_in_all_samples
-
 all_samples_DE_info %>%
   dplyr::filter(G2_G1_1=="Down" & G2_G1_2=="Down" & G2_G1_3=="Down") -> Down_in_all_samples
+
+fn_test <- function(all_samples_DE_info,trend){
+  all_samples_DE_info %>%
+    dplyr::filter(G2_G1_1==trend & G2_G1_2==trend) -> in_1_2
+  all_samples_DE_info %>%
+    dplyr::filter(G2_G1_1==trend & G2_G1_3==trend) -> in_1_3
+  all_samples_DE_info %>%
+    dplyr::filter(G2_G1_2==trend & G2_G1_3==trend) -> in_2_3
+  rbind(in_1_2,in_1_3) %>% 
+    rbind(in_2_3)  %>%
+    unique()
+}
+all_samples_DE_info %>% fn_test(trend = "Up") -> Up_in_2_samples
+all_samples_DE_info %>% fn_test(trend = "Down") -> Down_in_2_samples
 
 # fn_at_least_2<- function(a,b,c){
 #   a %>%
@@ -114,22 +127,29 @@ DE_all %>%
   dplyr::filter(abs(`log2FoldChange(G2/G1)`)>=fc_threshold) %>%
   dplyr::rename("log2FC"=`log2FoldChange(G2/G1)`) %>%
   dplyr::mutate(`DS/IM`=ifelse(log2FC>0,"Up","Down")) -> BGI_DE_all_0.8_1.5
+
 BGI_DE_all_0.8_1.5 %>%
   readr::write_tsv(path = file.path(out_path,"DS-IM_BGI_DE_0.8_1.5_mRNA.info"))
+
 BGI_DE_all_0.8_1.5 %>%
   dplyr::select(Symbol) %>%
   dplyr::inner_join(all_exp,by="Symbol") -> BGI_DE_all_0.8_1.5_exp
-
+BGI_DE_all_0.8_1.5_exp %>%
+  readr::write_tsv(path = file.path(out_path,"BGI_DE_all_0.8_1.5.exp"))
 # overlap with 3 sample
+# all samples
 BGI_DE_all_0.8_1.5 %>%
   dplyr::inner_join(Down_in_all_samples,by="Symbol") -> Down_in_all_test
-
 BGI_DE_all_0.8_1.5 %>%
-  dplyr::inner_join(UP_in_all_samples,by="Symbol") -> Up_in_all_test
+  dplyr::inner_join(Up_in_all_samples,by="Symbol") -> Up_in_all_test
+rbind(Down_in_all_test,Up_in_all_test) %>%
+  readr::write_tsv(path = file.path(out_path,"DE_in_all-AND-in_BGI_0.8_1.5"))
 
-
+# at least 2 samples
 BGI_DE_all_0.8_1.5 %>%
-  dplyr::filter(Symbol %in% genes_DE_in_at_least_2_pairs) -> DE_all_0.8_1.5_overlap_allPair
+  dplyr::inner_join(Down_in_2_samples,by="Symbol") -> Down_in_2_and_all_test
+BGI_DE_all_0.8_1.5 %>%
+  dplyr::inner_join(Up_in_2_samples,by="Symbol") -> Up_in_2_and_all_test
+rbind(Down_in_2_and_all_test,Up_in_2_and_all_test) %>%
+  readr::write_tsv(path = file.path(out_path,"DE_in_2-AND-in_BGI_0.8_1.5"))
 
-DE_all_0.8_1.5_overlap_allPair %>%
-  readr::write_tsv(path = file.path(out_path,"DE_all_BGI0.8_1.5_overlap_allPair.info"))
