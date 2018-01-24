@@ -144,6 +144,7 @@ BGI_DE_all_0.8_1.5 %>%
   dplyr::inner_join(Up_in_all_samples,by="Symbol") -> Up_in_all_test
 rbind(Down_in_all_test,Up_in_all_test) %>%
   readr::write_tsv(path = file.path(out_path,"DE_in_all-AND-in_BGI_0.8_1.5"))
+c(Down_in_all_test$Symbol,Up_in_all_test$Symbol) -> DE_in_all_test.list
 
 # at least 2 samples
 BGI_DE_all_0.8_1.5 %>%
@@ -152,4 +153,45 @@ BGI_DE_all_0.8_1.5 %>%
   dplyr::inner_join(Up_in_2_samples,by="Symbol") -> Up_in_2_and_all_test
 rbind(Down_in_2_and_all_test,Up_in_2_and_all_test) %>%
   readr::write_tsv(path = file.path(out_path,"DE_in_2-AND-in_BGI_0.8_1.5"))
+c(Down_in_2_and_all_test$Symbol,Up_in_2_and_all_test$Symbol) -> DE_in_2_and_all_test.list
 
+# statistic --------------------------------------------------------------
+BGI_DE_all_0.8_1.5$`DS/IM` %>% table()
+
+
+# plot --------------------------------------------------------------------
+
+DE_all%>%
+  dplyr::rename("log2FC"=`log2FoldChange(G2/G1)`) %>%
+  dplyr::mutate(`G2/G1`=ifelse(log2FC>=(0.585) ,"Up","None")) %>%
+  dplyr::mutate(`G2/G1`=ifelse(log2FC<=(-0.585),"Down",`G2/G1`)) %>%
+  dplyr::mutate(`G2/G1`=ifelse(Probability>=0.8,`G2/G1`,"None")) %>%
+  dplyr::mutate(`G2/G1`=ifelse(is.na(Probability),"None",`G2/G1`)) %>%
+  dplyr::select(Symbol,log2FC,Probability,`G2/G1`) %>%
+  dplyr::mutate(alpha=ifelse(Symbol %in% DE_in_2_and_all_test.list & `G2/G1` !="None",0.5,0.1)) %>%
+  dplyr::mutate(alpha=ifelse(Symbol %in% DE_in_all_test.list & `G2/G1` !="None",1,alpha)) %>%
+  # dplyr::mutate(Probability=-log10(1-Probability)) %>%
+  dplyr::mutate(color=ifelse(`G2/G1`=="Up","red","grey")) %>%
+  dplyr::mutate(color=ifelse(`G2/G1`=="Down","blue",color)) -> point_ready
+
+library(ggplot2)
+point_ready %>%
+  ggplot() +
+  geom_point(aes(x=log2FC,y=Probability,color=`G2/G1`,alpha=alpha)) + #,colour=point_ready$color
+  scale_alpha_continuous(
+    name="Significant Group",
+    limits=c(0.1,1),
+    breaks=c(0.1,0.5,1),
+    labels=c("Only Noiseq","At 2 samples & Noiseq","All 3 samples & Noiseq")
+  ) +
+  xlab("Log2(FC)") +
+  theme(
+    legend.position = 'bottom',
+    axis.title.x = element_text(size = 20),
+    axis.title.y = element_text(size = 17),
+    axis.text = element_text(size = 17),
+    legend.text = element_text(size = 17),
+    legend.title = element_text(size = 20)
+  )-> p;p
+
+ggsave(file.path(out_path,"plot/G1-control.MA.plot.pdf"),p,device = "pdf",width = 3,height = 3)
