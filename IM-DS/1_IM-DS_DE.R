@@ -175,6 +175,8 @@ DE_all%>%
   dplyr::mutate(color=ifelse(`G2/G1`=="Down","blue",color)) -> point_ready
 
 library(ggplot2)
+
+# FC and Probability distribution
 point_ready %>%
   ggplot() +
   geom_point(aes(x=log2FC,y=Probability,color=`G2/G1`,alpha=alpha)) + #,colour=point_ready$color
@@ -195,3 +197,45 @@ point_ready %>%
   )-> p;p
 
 ggsave(file.path(out_path,"plot/G1-control.MA.plot.pdf"),p,device = "pdf",width = 3,height = 3)
+
+# Heatmap of DE genes ---------
+library(ComplexHeatmap)
+
+# exp data prepare
+DE_exp <- as.data.frame(BGI_DE_all_0.8_1.5_exp)
+rownames(DE_exp) <- DE_exp$Symbol  
+DE_exp <- DE_exp[,-1] %>% as.matrix()
+colnames(DE_exp) <- sub("_FPKM","",colnames(DE_exp))
+
+# annotation
+BGI_DE_all_0.8_1.5 %>%
+  dplyr::select(`DS/IM`) %>%
+  as.data.frame() -> DE_anno
+rownames(DE_anno) <- BGI_DE_all_0.8_1.5$Symbol  
+
+# row annotation
+gene_anno_plot = rowAnnotation(df = DE_anno,
+                    col = list(`DS/IM` = c("Up" = "red", "Down" = "green")),
+                    width = unit(0.5, "cm")
+)
+
+sam_anno <- data.frame(Group = c(rep("IM",3),rep("DS",3)))
+rownames(sam_anno) <- DE_exp %>% colnames()
+log2(DE_exp)->log2DE_exp
+sam_anno_plot = HeatmapAnnotation(df = sam_anno,
+                        boxplot = anno_boxplot(log2DE_exp, axis = TRUE),
+                        col = list(Group = c("DS" = "pink", "IM" = "purple")))
+
+
+DE_exp %>%
+  t() %>%
+  scale() %>%
+  t() %>%
+  as.data.frame() -> DE_exp_rowscale
+pdf(file.path(out_path,"plot/DE_mRNA_exp_heatmap.pdf"),width = 5,height = 6)
+he = Heatmap(DE_exp_rowscale, 
+             show_row_names = FALSE, cluster_columns = FALSE,
+             top_annotation = sam_anno_plot, top_annotation_height = unit(6, "cm"),
+             heatmap_legend_param = list(title = c("Experssion")))
+he + gene_anno_plot
+dev.off()
