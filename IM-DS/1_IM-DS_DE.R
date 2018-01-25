@@ -45,36 +45,6 @@ DE_all <- readr::read_tsv("/project/huff/huff/TKI/data/RNA/F17FTSCCWLJ2064_HUMwc
 # 3 sample De overlap -----
 fc_threshold <- 0.585
 
-# # G2_1/G1_1 DE genes
-# G2_1 %>%
-#   dplyr::inner_join(G1_1,by="Symbol") %>%
-#   dplyr::mutate(FC = log2(G2_1/G1_1)) %>%
-#   dplyr::filter(FC>=fc_threshold) -> DE_1_up
-# G2_1 %>%
-#   dplyr::inner_join(G1_1,by="Symbol") %>%
-#   dplyr::mutate(FC = log2(G2_1/G1_1)) %>%
-#   dplyr::filter(FC <= (-fc_threshold)) -> DE_1_down
-# 
-# # G2_2/G1_2 De genes
-# G2_2 %>%
-#   dplyr::inner_join(G1_2,by="Symbol") %>%
-#   dplyr::mutate(FC = log2(G2_2/G1_2)) %>%
-#   dplyr::filter(FC>=fc_threshold) -> DE_2_up
-# G2_2 %>%
-#   dplyr::inner_join(G1_2,by="Symbol") %>%
-#   dplyr::mutate(FC = log2(G2_2/G1_2)) %>%
-#   dplyr::filter(FC<=(-fc_threshold)) -> DE_2_down
-# 
-# # G2_3/G1_3 DE genes
-# G2_3 %>%
-#   dplyr::inner_join(G1_3,by="Symbol") %>%
-#   dplyr::mutate(FC = log2(G2_3/G1_3)) %>%
-#   dplyr::filter(FC <= (-fc_threshold)) -> DE_3_down
-# G2_3 %>%
-#   dplyr::inner_join(G1_3,by="Symbol") %>%
-#   dplyr::mutate(FC = log2(G2_3/G1_3)) %>%
-#   dplyr::filter(FC >= fc_threshold) -> DE_3_up
-
 all_exp %>%
   dplyr::mutate(G2_G1_1=ifelse(log2(G2_1_FPKM/G1_1_FPKM)>=fc_threshold,"Up","None")) %>%
   dplyr::mutate(G2_G1_1=ifelse(log2(G2_1_FPKM/G1_1_FPKM)<=(-fc_threshold),"Down",G2_G1_1)) %>%
@@ -129,7 +99,10 @@ DE_all %>%
   dplyr::mutate(`DS/IM`=ifelse(log2FC>0,"Up","Down")) -> BGI_DE_all_0.8_1.5
 
 BGI_DE_all_0.8_1.5 %>%
+  dplyr::inner_join(all_samples_DE_info,by="Symbol") -> BGI_DE_all_0.8_1.5.info
+BGI_DE_all_0.8_1.5.info %>%
   readr::write_tsv(path = file.path(out_path,"DS-IM_BGI_DE_0.8_1.5_mRNA.info"))
+
 
 BGI_DE_all_0.8_1.5 %>%
   dplyr::select(Symbol) %>%
@@ -202,16 +175,18 @@ ggsave(file.path(out_path,"plot/G1-control.MA.plot.pdf"),p,device = "pdf",width 
 library(ComplexHeatmap)
 
 # exp data prepare
-DE_exp <- as.data.frame(BGI_DE_all_0.8_1.5_exp)
+DE_exp <- as.data.frame(BGI_DE_all_0.8_1.5_exp %>% dplyr::filter(Symbol %in% DE_in_2_and_all_test.list))
 rownames(DE_exp) <- DE_exp$Symbol  
 DE_exp <- DE_exp[,-1] %>% as.matrix()
 colnames(DE_exp) <- sub("_FPKM","",colnames(DE_exp))
 
 # annotation
 BGI_DE_all_0.8_1.5 %>%
+ dplyr::filter(Symbol %in% DE_in_2_and_all_test.list) -> DE.info
+DE.info %>%
   dplyr::select(`DS/IM`) %>%
   as.data.frame() -> DE_anno
-rownames(DE_anno) <- BGI_DE_all_0.8_1.5$Symbol  
+rownames(DE_anno) <- DE.info$Symbol  
 
 # row annotation
 gene_anno_plot = rowAnnotation(df = DE_anno,
@@ -221,6 +196,7 @@ gene_anno_plot = rowAnnotation(df = DE_anno,
 
 sam_anno <- data.frame(Group = c(rep("IM",3),rep("DS",3)))
 rownames(sam_anno) <- DE_exp %>% colnames()
+DE_exp[DE_exp==0] <- 0.01
 log2(DE_exp)->log2DE_exp
 sam_anno_plot = HeatmapAnnotation(df = sam_anno,
                         boxplot = anno_boxplot(log2DE_exp, axis = TRUE),
@@ -233,9 +209,12 @@ DE_exp %>%
   t() %>%
   as.data.frame() -> DE_exp_rowscale
 pdf(file.path(out_path,"plot/DE_mRNA_exp_heatmap.pdf"),width = 5,height = 6)
+pdf(file.path(out_path,"plot/DE_all_test_mRNA_exp_heatmap.pdf"),width = 5,height = 6)
+pdf(file.path(out_path,"plot/DE_2_sample_and_noiseq_mRNA_exp_heatmap.pdf"),width = 5,height = 6)
 he = Heatmap(DE_exp_rowscale, 
-             show_row_names = FALSE, cluster_columns = FALSE,
-             top_annotation = sam_anno_plot, top_annotation_height = unit(6, "cm"),
+             show_row_names = TRUE, 
+             cluster_columns = FALSE,
+             top_annotation = sam_anno_plot, top_annotation_height = unit(3, "cm"),
              heatmap_legend_param = list(title = c("Experssion")))
 he + gene_anno_plot
 dev.off()
